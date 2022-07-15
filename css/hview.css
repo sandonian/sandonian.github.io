@@ -103,8 +103,8 @@
     background-image: none !important;
 }
 
-#border-box div.hover {
-    box-shadow: 0 0 0 1px var(--under-cursor-color) !important;
+#border-box div:is(.hover, .hover.selected, .hover.last_selected) {
+    box-shadow: 0 0 0 1px var(--under-cursor-color);
     z-index: 2000;
 }
 

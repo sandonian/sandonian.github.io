@@ -111,8 +111,9 @@
     border-radius: 2px;
 }
 
-.treeview label:hover x-line-wrap, .treeview label.hover x-line-wrap{
-    background: var(--under-cursor-color) !important;
+.treeview label:is(:hover, .selected:hover, .last_selected:hover,
+                   .hover, .selected.hover, .last_selected.hover) x-line-wrap {
+    background: var(--under-cursor-color);
 }
 
 .treeview label.selected x-line-wrap {
