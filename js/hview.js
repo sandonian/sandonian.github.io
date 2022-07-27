@@ -414,12 +414,10 @@ $(function () {
             }
         }
 
-        if (this.node.properties != undefined) {
-            for (let i = 0; i < this.node.properties.length; i++) {
-                const p = this.node.properties[i];
-                if (favoriteProperties.indexOf(p.fullname) < 0) {
-                    addProp(p, p.type);
-                }
+        for (let i = 0; i < this.node.properties.length; i++) {
+            const p = this.node.properties[i];
+            if (favoriteProperties.indexOf(p.fullname) < 0) {
+                addProp(p, p.type);
             }
         }
         filterProperties();
@@ -517,40 +515,17 @@ $(function () {
         $(this).parent().dblclick();
     }
 
-    const renderNode = function (node, container, boxContainer, maxW, maxH, leftShift, topShift, scaleX, scaleY) {
-        const newScaleX = scaleX * node.scaleX;
-        const newScaleY = scaleY * node.scaleY;
-
-        const l = leftShift + (node.left + node.translationX) * scaleX + node.width * (scaleX - newScaleX) / 2;
-        const t = topShift + (node.top + node.translationY) * scaleY + node.height * (scaleY - newScaleY) / 2;
-        const boxPos = {
-            left: l,
-            top: t,
-            width: node.width * newScaleX,
-            height: node.height * newScaleY,
-        };
-
+    const renderNode = function (node, container, boxContainer) {
         const box = divProtoType.cloneNode()
-        box.style.left = (boxPos.left * 100 / maxW) + "%"
-        box.style.top = (boxPos.top * 100 / maxH) + "%"
-        box.style.width = (boxPos.width * 100 / maxW) + "%"
-        box.style.height = (boxPos.height * 100 / maxH) + "%"
-        boxContainer.appendChild(box)
+        box.style.left = node.boxStylePos.left;
+        box.style.top = node.boxStylePos.top;
+        box.style.width = node.boxStylePos.width;
+        box.style.height = node.boxStylePos.height;
         box.node = node
-
-        if (node.name == undefined)
-            node.name = node.classname
-        let name = node.name.split(".");
-        name = name[name.length - 1];
-
-        const desc = node.contentDesc;
-        if (desc != null) {
-            name = name + " : " + desc;
-        }
-        node.desc = name;
+        boxContainer.appendChild(box)
 
         const elWrap = xlinewrapProtoType.cloneNode()
-        elWrap.appendChild(document.createTextNode(name))
+        elWrap.appendChild(document.createTextNode(node.name))
         elWrap.appendChild(xprofileProtoType.cloneNode())
     
         const el = labelProtoType.cloneNode()
@@ -562,11 +537,11 @@ $(function () {
         el.appendChild(elWrap)
         el.node = node
         el.box = box
+
         box.el = el
 
         node.box = box
         node.el = el
-        node.boxpos = boxPos;
 
         const span = spanProtoType.cloneNode()
         elWrap.insertBefore(span, null)
@@ -577,10 +552,8 @@ $(function () {
             el.ondblclick = treeToggle
             const newContainer = newContainerProtoType.cloneNode()
             container.appendChild(newContainer)
-            const shiftX = l - node.scrollX;
-            const shiftY = t - node.scrollY;
             for (let i = 0; i < node.children.length; i++) {
-                renderNode(node.children[i], newContainer, boxContainer, maxW, maxH, shiftX, shiftY, newScaleX, newScaleY);
+                renderNode(node.children[i], newContainer, boxContainer);
             }
         }
     }
@@ -593,11 +566,7 @@ $(function () {
         vListContent.replaceChildren();
         boxContent.replaceChildren();
 
-        // Clear all transform from the root, so that it matches the preview
-        root.scaleX = root.scaleY = 1;
-        root.translationX = root.translationY = 1;
-
-        renderNode(root, vListContent, boxContent, root.width, root.height, 0, 0, 1, 1)
+        renderNode(root, vListContent, boxContent)
     }
 
     /********************************* Refresh view *********************************/

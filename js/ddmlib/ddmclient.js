@@ -287,21 +287,7 @@ function parseViewData(data, cmd, callback) {
         callback.reject("Error parsing view data");
     }
     w.onmessage = function (e) {
-        const root = e.data.root;
-        const setParent = function (node) {
-            for (let i = 0; i < node.children.length; i++) {
-                node.children[i].parent = node;
-                setParent(node.children[i]);
-            }
-
-            // Update named properties.
-            node.namedProperties = {};
-            for (let i = 0; i < node.properties.length; i++) {
-                node.namedProperties[node.properties[i].fullname] = node.properties[i];
-            }
-        }
-        setParent(root);
-        callback.accept(root);
+        callback.accept(e.data.root);
     }
     w.postMessage({ cmd: cmd, data: data });
 }
@@ -346,14 +332,16 @@ class TimeLapseBugReportServiceController {
     }
 
     loadViewList() {
-        const base64String = this.bugReportLine.replace(VIEW_CAPTURE_REGEX, "")
-
-        return protobuf.load("../protos/view_capture.proto").then(function (root) {
-            return root.lookupType("com.android.launcher3.view.ExportedData")
-                       .decode(base64ToUint8Array(base64String))
-                       .frameData
-                       .map(x => x.node)
-        })
+        const callback = deferred();
+        const tlWorker = createWorker("js/ddmlib/tl-worker.js")
+        tlWorker.onerror = function() {
+            callback.reject("Error parsing view data");
+        }
+        tlWorker.onmessage = function(e) {
+            callback.accept(e.data.rootNodes);
+        }
+        tlWorker.postMessage({ bugReportLine: this.bugReportLine })
+        return callback
     }
 
     async captureView(viewName) {
