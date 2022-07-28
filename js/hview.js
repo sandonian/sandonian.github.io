@@ -21,6 +21,7 @@ $(function () {
 
     let currentRootNode = null;
     let selectedNode;
+    let lastSelectedNode;
     let favoriteProperties = [];
     let viewController;
     let showHiddenNodes = false;
@@ -297,6 +298,9 @@ $(function () {
     }
 
     const selectNode = function () {
+        lastSelectedNode = selectedNode
+        selectedNode = this.node;
+
         if (this.classList.contains(CLS_SELECTED)) return;
         document.querySelectorAll(".last_selected").forEach((it) => {
             it.classList.remove(CLS_LAST_SELECTED);
@@ -309,7 +313,20 @@ $(function () {
         this.box.classList.add(CLS_SELECTED);
 
         $("#border-box .selected, #image-preview").css('background-image', 'none')
+        renderProperties(this.node)
 
+        // Apply image
+        if (this.node.imageUrl == URL_LOADING) {
+            // Show a loading message
+        } else if (this.node.imageUrl) {
+            box.css('background-image', 'url("' + this.node.imageUrl + '")');
+            $("#image-preview").empty().css('background-image', 'url("' + this.node.imageUrl + '")');
+        } else {
+            loadImage(this.node);
+        }
+    }
+
+    function renderProperties(node /* ViewNode */) {
         // Render properties;
         const nHolder = $("#p_name").empty();
         const vHolder = $("#p_val").empty();
@@ -408,32 +425,19 @@ $(function () {
 
         // Selected properties
         for (let i = 0; i < favoriteProperties.length; i++) {
-            const prop = this.node.namedProperties[favoriteProperties[i]];
+            const prop = node.namedProperties[favoriteProperties[i]];
             if (prop) {
                 addProp(prop, "Favorites").addClass(CLS_SELECTED);
             }
         }
 
-        if (this.node.properties != undefined) {
-            for (let i = 0; i < this.node.properties.length; i++) {
-                const p = this.node.properties[i];
-                if (favoriteProperties.indexOf(p.fullname) < 0) {
-                    addProp(p, p.type);
-                }
+        for (let i = 0; i < node.properties.length; i++) {
+            const p = node.properties[i];
+            if (favoriteProperties.indexOf(p.fullname) < 0) {
+                addProp(p, p.type);
             }
         }
         filterProperties();
-        selectedNode = this.node;
-
-        // Apply image
-        if (this.node.imageUrl == URL_LOADING) {
-            // Show a loading message
-        } else if (this.node.imageUrl) {
-            box.css('background-image', 'url("' + this.node.imageUrl + '")');
-            $("#image-preview").empty().css('background-image', 'url("' + this.node.imageUrl + '")');
-        } else {
-            loadImage(this.node);
-        }
     }
 
     const saveValueTypeSelect = function() {
@@ -517,40 +521,17 @@ $(function () {
         $(this).parent().dblclick();
     }
 
-    const renderNode = function (node, container, boxContainer, maxW, maxH, leftShift, topShift, scaleX, scaleY) {
-        const newScaleX = scaleX * node.scaleX;
-        const newScaleY = scaleY * node.scaleY;
-
-        const l = leftShift + (node.left + node.translationX) * scaleX + node.width * (scaleX - newScaleX) / 2;
-        const t = topShift + (node.top + node.translationY) * scaleY + node.height * (scaleY - newScaleY) / 2;
-        const boxPos = {
-            left: l,
-            top: t,
-            width: node.width * newScaleX,
-            height: node.height * newScaleY,
-        };
-
+    const renderNode = function (node, container, boxContainer) {
         const box = divProtoType.cloneNode()
-        box.style.left = (boxPos.left * 100 / maxW) + "%"
-        box.style.top = (boxPos.top * 100 / maxH) + "%"
-        box.style.width = (boxPos.width * 100 / maxW) + "%"
-        box.style.height = (boxPos.height * 100 / maxH) + "%"
-        boxContainer.appendChild(box)
+        box.style.left = node.boxStylePos.left;
+        box.style.top = node.boxStylePos.top;
+        box.style.width = node.boxStylePos.width;
+        box.style.height = node.boxStylePos.height;
         box.node = node
-
-        if (node.name == undefined)
-            node.name = node.classname
-        let name = node.name.split(".");
-        name = name[name.length - 1];
-
-        const desc = node.contentDesc;
-        if (desc != null) {
-            name = name + " : " + desc;
-        }
-        node.desc = name;
+        boxContainer.appendChild(box)
 
         const elWrap = xlinewrapProtoType.cloneNode()
-        elWrap.appendChild(document.createTextNode(name))
+        elWrap.appendChild(document.createTextNode(node.name))
         elWrap.appendChild(xprofileProtoType.cloneNode())
     
         const el = labelProtoType.cloneNode()
@@ -562,11 +543,11 @@ $(function () {
         el.appendChild(elWrap)
         el.node = node
         el.box = box
+
         box.el = el
 
         node.box = box
         node.el = el
-        node.boxpos = boxPos;
 
         const span = spanProtoType.cloneNode()
         elWrap.insertBefore(span, null)
@@ -577,44 +558,42 @@ $(function () {
             el.ondblclick = treeToggle
             const newContainer = newContainerProtoType.cloneNode()
             container.appendChild(newContainer)
-            const shiftX = l - node.scrollX;
-            const shiftY = t - node.scrollY;
             for (let i = 0; i < node.children.length; i++) {
-                renderNode(node.children[i], newContainer, boxContainer, maxW, maxH, shiftX, shiftY, newScaleX, newScaleY);
+                renderNode(node.children[i], newContainer, boxContainer);
             }
         }
     }
 
-    const renderList = function (root, vListContent = document.getElementById("vlist_content"), boxContent = document.getElementById("border-box")) {
-        $("#hview").removeClass("hide").removeClass("hidden");
-        $("#main-progress").hide();
-
-        // Remove any existing child nodes from both containers
-        vListContent.replaceChildren();
-        boxContent.replaceChildren();
-
-        // Clear all transform from the root, so that it matches the preview
-        root.scaleX = root.scaleY = 1;
-        root.translationX = root.translationY = 1;
-
-        renderNode(root, vListContent, boxContent, root.width, root.height, 0, 0, 1, 1)
-    }
-
     /********************************* Refresh view *********************************/
     hViewAction = function (appInfo) {
+        console.time("hViewAction")
         showViewHierarchyUX()
 
         viewController = createViewController(appInfo);
-        viewController.loadViewList().then(v => {
-            currentRootNode = v;
-            renderList(v);
+        viewController.loadViewList().then(rootNode => {
+            currentRootNode = rootNode;
+
+            const vListContent = document.getElementById("vlist_content")
+            vListContent.replaceChildren()
+            const borderBox = document.getElementById("border-box")
+            borderBox.replaceChildren()
+            renderNode(rootNode, vListContent, borderBox)
+
             onFirstViewHierarchyRendered()
+            $("#main-progress").hide();
         }).catch(msg => { handleLoadingListError(msg) });
 
-        setupCustomCommandButton(viewController)
+        if (viewController.customCommand) {
+            $("#btn-custom-command").show();
+            loadSuggestions(viewController.device);
+        } else {
+            $("#btn-custom-command").hide();
+        }
+
         setupWindowTitle(appInfo)
         currentAppInfo = appInfo;
         setupBackButton(appInfo)
+        console.timeEnd("hViewAction")
     }
 
     function setupBackButton(appInfo) {
@@ -640,7 +619,7 @@ $(function () {
         $("#main-progress").show()
         $("#device-list-content").hide()
         $("#darkThemeSwitch").hide()
-        $("#hview").removeClass("hide")
+        $("#hview").removeClass("hide").removeClass("hidden");
     }
 
     function onFirstViewHierarchyRendered() {
@@ -652,114 +631,116 @@ $(function () {
 
     tlHvAction = function(appInfo) {
         currentAppInfo = appInfo
-        viewController = new TimeLapseBugReportServiceController(appInfo)
+        /* Set this to avoid null pointer exceptions. */
+        viewController = new NoOpServiceController()
 
         showViewHierarchyUX()
-        setupCustomCommandButton(viewController)
+        $("#btn-custom-command").hide();
         setupWindowTitle(currentAppInfo)
         setupBackButton(appInfo)
-
-        function moveChildNodes(newParent, oldParent) {
-            while (oldParent.childNodes.length > 0) {
-              newParent.appendChild(oldParent.childNodes[0]);
-            }
-        }
 
         if ($(".slider-group").hasClass("hidden")) {
             $(".slider-group").toggleClass("visible hidden")
             $("#vlist, #border-box").addClass("multi-page")
         }
 
+        function addToNodeMap(node /* ViewNode */, rootNodeIndex /* Integer */) {
+            let mapValue /* ViewNode[] | null */ = nodeMap.get(node.name)
+            if (mapValue == null) {
+                mapValue = Array(rootNodes.length)
+                nodeMap.set(node.name, mapValue)
+            }
+            mapValue[rootNodeIndex] = node
+            for (let i = 0; i < node.children.length; i++) {
+                addToNodeMap(node.children[i], rootNodeIndex)
+            }
+        }
+
         const vListJQueries /* jQuery[] */  = []
         const boxJQueries /* jQuery[] */ = []
-        let rootNodes /* ViewNode[] */ = []
-        let nodeMap /* Map<String, ViewNode[]> | null */ = new Map()
+        const rootNodes /* ViewNode[] */ = []
+        const nodeMap /* Map<String, ViewNode[]> | null */ = new Map()
 
-        viewController.loadViewList().then(function(nodes) {
-            rootNodes = nodes
-            currentRootNode = rootNodes[0]
-            document.getElementById("tl-range").max = (rootNodes.length-1).toString()
+        let frameCount;
+        let processedIndex /* Integer */ = 0
 
-            function addToNodeMap(node /* ViewNode */, rootNodeIndex /* Integer */) {
-                let mapValue /* ViewNode[] | null */ = nodeMap.get(node.name)
-                if (mapValue == null) {
-                    mapValue = Array(rootNodes.length)
-                    nodeMap.set(node.name, mapValue)
-                }
-                mapValue[rootNodeIndex] = node
-                for (let i = 0; i < node.children.length; i++) {
-                    addToNodeMap(node.children[i], rootNodeIndex)
-                }
+        /* If you are wondering why this work is not completely done in the web worker, its because JQuery/DOM
+           manipulation needs a DOM in order to work properly. I tried using a fake DOM, and JQuery's
+           append/after/before methods didn't work. Also, functions cannot be passed to and from WebWorkers,
+           so the hover / click / etc. methods can't be prepared off the main thread. Aside from WebWorkers,
+           browser Javascript doesn't provide any alternative methods of multi-threaded programming. */
+        function processRootNode(event) {
+            const rootNode = event.data.rootNode
+            const tBox = divProtoType.cloneNode()
+            const tVList = divProtoType.cloneNode()
+
+            renderNode(rootNode, tVList, tBox)
+            rootNodes.push(rootNode)
+            vListJQueries.push(tVList)
+            boxJQueries.push(tBox)
+            addToNodeMap(rootNode, processedIndex)
+
+            if (processedIndex == 0) {
+                currentRootNode = event.data.rootNode
+                document.getElementById("vlist_content").replaceChildren(...tVList.childNodes)
+                document.getElementById("border-box").replaceChildren(...tBox.childNodes)
+                onFirstViewHierarchyRendered()
             }
+            processedIndex++
 
-            let processingStartTime;
-
-            /* processRootNodes processes as many root nodes as it can within ~10ms. Then it pauses for a
-               few milliseconds before hogging the main thread again so that the user can interact with a
-               working and non-janky UI while the entire collection of time lapse data is being processed.
-
-               If you are wondering why web workers were not used instead, that is because they do not 
-               work well for this use case due to the following: 1) JQuery/DOM manipulation needs a DOM in
-               order to work properly. I tried using a fake DOM, and JQuery's append/after/before methods
-               didn't work. 2) Functions cannot be passed to and from WebWorkers, so the hover / click / etc.
-               methods can't be prepared off the main thread. Also, aside from WebWorkers, Javascript in the
-               browser doesn't provide any alternative methods of multi-threaded programming. */
-            function processRootNodes(processedIndex /* Integer */, isNewRoundOfProcessing /* Boolean */) {
-                if (isNewRoundOfProcessing) {
-                    processingStartTime = Date.now()
-                }
-
-                const tBox = divProtoType.cloneNode()
-                const tVList = divProtoType.cloneNode()
-
-                renderList(rootNodes[processedIndex], tVList, tBox)
-                vListJQueries.push(tVList)
-                boxJQueries.push(tBox)
-                addToNodeMap(rootNodes[processedIndex], processedIndex)
-
-                if (processedIndex == 0) {
-                    moveChildNodes(document.getElementById("vlist_content"), tVList)
-                    moveChildNodes(document.getElementById("border-box"), tBox)
-                    onFirstViewHierarchyRendered()
-                }
-
-                if (processedIndex < rootNodes.length-1) {
-                    if ((Date.now() - processingStartTime) < PROCESSING_MS) {
-                        processRootNodes(processedIndex+1, false)
-                    } else {
-                        setTimeout(
-                            processRootNodes,
-                            Math.max(FRAME_MS + processingStartTime - Date.now(), 1),
-                            processedIndex+1,
-                            true)
-                    }
-                }
+            if (processedIndex < frameCount) {
+                w.postMessage({ processedIndex: processedIndex })
+            } else {
+                $("#main-progress").hide()
             }
-            processRootNodes(0, true);
-        })
+        }
+
+        /* It takes > 500ms to format 170 frames of launcher view hierarchy data,
+           and then copy that data over from the worker thread to the main thread.
+           In order to compensate for that, nodes are being continually formatted
+           until completion on the background thread, and then copied over as needed
+           1 at a time (copying an already formatted node takes ~1-2ms).
+
+           The natural pauses that come from requesting and receiving nodes from the
+           worker thread allow for a responsive and jank free UI while the entire collection
+           of view hierarchies are processed. */
+        const w = createWorker("js/ddmlib/tl-worker.js");
+        w.onerror = function () {
+            throw "Error parsing view data"
+        }
+        // Handle the first message, then delegate the rest of the responses to processRootNode
+        w.onmessage = function (e) {
+            frameCount = e.data.frameCount
+            document.getElementById("tl-range").max = frameCount
+            w.onmessage = processRootNode
+            w.postMessage({ processedIndex: processedIndex })
+        }
+        w.postMessage({ tlHvDataAsBinaryArray: appInfo.data });
 
         function migrateSelectedState(index /* Integer */) {
-            function migrateOneClassOnOneComponent(clazz /* String */, containerId /* String */, elementAccessor /* String */) {
-                $("#" + containerId + " ." + clazz).each(function (_) {
-                    this.classList.remove(clazz)
-                    const mapValue /* ViewNode | null */ = nodeMap.get(this.node.name)[index]
-                    mapValue[elementAccessor].classList.add(clazz)
-                })
+            function toggle(node, clazz) {
+                ["el", "box"].forEach((it) => node[it].classList.toggle(clazz))
             }
-            migrateOneClassOnOneComponent(CLS_SELECTED, "vlist", "el")
-            migrateOneClassOnOneComponent(CLS_LAST_SELECTED, "vlist", "el")
-            migrateOneClassOnOneComponent(CLS_SELECTED, "border-box", "box")
-            migrateOneClassOnOneComponent(CLS_LAST_SELECTED, "border-box", "box")
+            toggle(selectedNode, CLS_SELECTED)
+            toggle(lastSelectedNode, CLS_LAST_SELECTED)
+
+            selectedNode = nodeMap.get(selectedNode.name)[index]
+            renderProperties(selectedNode)
+            lastSelectedNode = nodeMap.get(lastSelectedNode.name)[index]
+
+            toggle(selectedNode, CLS_SELECTED)
+            toggle(lastSelectedNode, CLS_LAST_SELECTED)
         }
 
         function switchViewHierarchy(newIndex /* Integer */, oldIndex /* Integer */) {
             const vListContent = document.getElementById("vlist_content")
             const borderBox = document.getElementById("border-box")
 
-            moveChildNodes(vListJQueries[oldIndex], vListContent)
-            moveChildNodes(boxJQueries[oldIndex], borderBox)
-            moveChildNodes(vListContent, vListJQueries[newIndex])
-            moveChildNodes(borderBox, boxJQueries[newIndex])
+            vListJQueries[oldIndex].replaceChildren(...vListContent.childNodes)
+            vListContent.replaceChildren(...vListJQueries[newIndex].childNodes)
+
+            boxJQueries[oldIndex].replaceChildren(...borderBox.childNodes)
+            borderBox.replaceChildren(...boxJQueries[newIndex].childNodes)
         }
 
         let previousIndex = 0
@@ -783,15 +764,6 @@ $(function () {
                     $("#tl-range").val(index)
                 }
             })
-    }
-
-    function setupCustomCommandButton(viewController) {
-        if (viewController.customCommand) {
-            $("#btn-custom-command").show();
-            loadSuggestions(viewController.device);
-        } else {
-            $("#btn-custom-command").hide();
-        }
     }
 
     function setupWindowTitle(appInfo) {
@@ -1241,30 +1213,22 @@ $(function () {
                 icon: showHiddenNodes ? "ic_checked" : "ic_unchecked",
                 id: 0
             },
+            null,
             {
                 text: "Dark theme",
                 icon: isDarkTheme() ? "ic_checked" : "ic_unchecked",
                 id: 5
-            },
-            null,
-            {
-                text: "Save hierarchy",
-                icon: "ic_save",
-                id: 1
-            },
-            {
-                text: "Refresh",
-                icon: "ic_refresh",
-                id: 2
             }
         ];
+
         if (!$("#hviewtabs").is(":visible")) {
             // Only show the preview menu when tabs are not available
             menu.unshift({
                 text: "Preview",
                 icon: "ic_submenu",
                 id: 6
-            });
+            },
+            null);
         }
 
         if (viewController.loadScreenshot) {
@@ -1276,11 +1240,22 @@ $(function () {
         }
 
         if (adbDevice && !adbDevice.disconnectedDevice) {
-            menu.push(null, {
-                text: "Disconnect",
-                icon: "ic_disconnect",
-                id: 3
-            })
+            menu.push(null,
+                {
+                    text: "Save hierarchy",
+                    icon: "ic_save",
+                    id: 1
+                },
+                {
+                    text: "Refresh",
+                    icon: "ic_refresh",
+                    id: 2
+                },
+                {
+                    text: "Disconnect",
+                    icon: "ic_disconnect",
+                    id: 3
+                })
         }
 
         const offset = $(this).offset();
@@ -1323,30 +1298,22 @@ $(function () {
         {pageX: offset.left, pageY: offset.top});
     });
 
+    function buildPreviewMenuItem(id, text) {
+        return {
+            text: text,
+            icon: currentPreviewMode == id ? "ic_checked" : "ic_unchecked",
+            id: id
+        }
+    }
+
     let currentPreviewMode = 3;
     const showPreviewContext = function(e) {
-        const menu = [
-            {
-                text: "Grid",
-                icon: currentPreviewMode == 0 ? "ic_checked" : "ic_unchecked",
-                id: 0
-            },
-            {
-                text: "Image",
-                icon: currentPreviewMode == 1 ? "ic_checked" : "ic_unchecked",
-                id: 1
-            },
-            {
-                text: "Both",
-                icon: currentPreviewMode == 2 ? "ic_checked" : "ic_unchecked",
-                id: 2
-            },
-            {
-                text: "App",
-                icon: currentPreviewMode == 3 ? "ic_checked" : "ic_unchecked",
-                id: 3
-            }
-        ];
+        const menu = [ buildPreviewMenuItem(0, "Grid") ]
+        if (!viewController.hasNoImage) {
+            menu.push(null, buildPreviewMenuItem(1, "Image"), null, buildPreviewMenuItem(2, "Both"))
+        }
+        menu.push(null, buildPreviewMenuItem(3, "App"))
+
         showContext(menu, function () {
             switch (this.id) {
                 case 0:  // only grid
