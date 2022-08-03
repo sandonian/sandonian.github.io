@@ -62,10 +62,14 @@ const activityListAction = function (initializer) {
             const entry = $("<div>").data("appInfo", l).appendTo(container).click(startHView).addClass("entry");
 
             if (list.hasIcons) {
-                const icon = $('<div class="icon">').appendTo(entry).attr("icon-pid", l.pid);
-                if (l.icon && l.icon.value) {
-                    icon.css("background-image", `url(${l.icon.value})`);
-                }
+                $("<div>").addClass("icon")
+                          .appendTo(entry)
+                          .attr("icon-pid", l.pid)
+                          .css("background-image", `url(${(l.icon && l.icon.value)
+                                                            ? l.icon.value
+                                                            : "../css/" + ((l.isTimeLapse)
+                                                                ? "app_icon_under_chart-multiple.png"
+                                                                : "app_icon.png")})`)
             }
 
             if (l.name == "") {
