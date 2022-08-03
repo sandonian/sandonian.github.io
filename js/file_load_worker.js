@@ -44,6 +44,7 @@ async function handleLoadFile(reader) {
                         name: x,
                         data: viewDumpZip.files[x].asUint8Array(),
                         type: TYPE_BUG_REPORT_V2,
+                        subIcon: SINGLE_VIEW_HIERARCHY_SUB_ICON,
                         display: display_size
                     })
                 }
@@ -143,6 +144,7 @@ async function loadBugFile(bugFile, list) {
                 name: "Launcher's View Capture",
                 data: tlHvDataAsBinaryArray,
                 type: TYPE_TIME_LAPSE_BUG_REPORT,
+                subIcon: TIME_LAPSE_SUB_ICON,
                 display: { }
             })
         } else {
@@ -197,6 +199,7 @@ async function loadBugFile(bugFile, list) {
     }
 
     list.use_new_api = false;
+    list.hasIcons = true
     postMessage({type: TYPE_BUG_REPORT, list: list});
 }
 

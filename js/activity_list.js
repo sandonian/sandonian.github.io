@@ -66,6 +66,11 @@ const activityListAction = function (initializer) {
                 if (l.icon && l.icon.value) {
                     icon.css("background-image", `url(${l.icon.value})`);
                 }
+                if (l.subIcon) {
+                    $("<i>").addClass("material-icons subIcon")
+                            .appendTo(icon)
+                            .text(l.subIcon)
+                }
             }
 
             if (l.name == "") {

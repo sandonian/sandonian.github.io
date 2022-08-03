@@ -79,9 +79,22 @@
     width: 36px;
     height: 36px;
     float: left;
+    position: relative;
     margin-right: 8px;
     background: url(app_icon.png) no-repeat center center;
     background-size: 100%;
+}
+
+.activity-list .subIcon {
+    color: black;
+    height: 18px;
+    width: 18px;
+    font-size: 18px;
+    border-radius: 3px;
+    background-color: white;
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
 }
 
 .old-api {

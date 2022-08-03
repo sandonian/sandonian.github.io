@@ -41,5 +41,7 @@ const CMD_USE_PROPERTY_MAP = 4;
 const CMD_DEFLATE_STRING = 8;
 const CMD_SKIP_8_BITS = 16;
 
+const TIME_LAPSE_SUB_ICON = "filter_2"
+const SINGLE_VIEW_HIERARCHY_SUB_ICON = "looks_one"
 const VIEW_VISIBLE = 0;
 const VIEW_CAPTURE_REGEX = /^\s*mViewCapture:\s*/
